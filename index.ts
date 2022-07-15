@@ -1,4 +1,29 @@
+// https://github.com/mgechev/tiny-compiler/blob/master/tiny.js
+
 const program = 'sub 2 sum 1 3 4';
+
+/*
+  # Lexer
+  The lexer is responsible for turning the input string into
+  a list of tokens. Usually a token looks the following way:
+  ```javascript
+  {
+    "type": Symbol("Operator"),
+    "value: "-"
+  }
+  ```
+  In our case we're keeping everything simplified and store
+  only the token's value. We can infer the type based on
+  regular expressions defined below.
+  In short, `lex` will turn the following expression:
+  ```
+  sub 2 sum 1 3 4
+  ```
+  To the following array:
+  ```
+  ["sub", "2", "sum", "1", "3", "4"]
+  ```
+*/
 
 const lex = (str: string) =>
   str
@@ -6,7 +31,37 @@ const lex = (str: string) =>
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
-const tokens: string[] = lex(program);
+/*
+  # Parser
+  The parser is responsible for turning the list of tokens
+  into an AST or Abstract Syntax Tree. In the example below
+  we use recursive descent parsing to produce the AST
+  from the input token array.
+  Visually, the parsing is a process which turns the array:
+  ```javascript
+  const tokens = ["sub", "2", "sum", "1", "3", "4"];
+  ```
+  to the following tree:
+  ```
+   sub
+   / \
+  2  sum
+     /|\
+    1 3 4
+  ```
+  The parser uses the following grammar to parse the input token array:
+  ```
+  num := 0-9+
+  op := sum | sub | div | mul
+  expr := num | op expr+
+  ```
+  This translated to plain English, means:
+  - `num` can be any sequence of the numbers between 0 and 9.
+  - `op` can be any of `sum`, `sub`, `div`, `mul`.
+  - `expr` can be either a number (i.e. `num`) or an operation followed by one or more `expr`s.
+  Notice that `expr` has a recursive declaration.
+*/
+
 
 const Op = Symbol('op');
 const Num = Symbol('num');
@@ -56,6 +111,14 @@ const parse = (tokens: string[]): Parser => {
   return parseExpression();
 };
 
+/*
+  # Evaluator
+  Finally, this is our evaluator. In it we simply visit each node
+  from the tree with pre-order traversal and either:
+  - Return the corresponding value, in case the node is of type number.
+  - Perform the corresponding arithmetic operation, in case of an operation node.
+*/
+
 const evaluate = (ast: Parser) => {
   const operationMap = {
     sum: args => args.reduce((a, b) => a + b, 0),
@@ -66,6 +129,12 @@ const evaluate = (ast: Parser) => {
 
   return ast.type === Num ? ast.val : operationMap[ast.val](ast.expression.map(evaluate))
 }
+
+/*
+  # Code generator
+  Alternatively, instead of interpreting the AST, we can translate
+  it to another language. Here's how we can do that with JavaScript.
+*/
 
 const compile = (ast: Parser) => {
   const operationMap = {
@@ -84,10 +153,21 @@ const compile = (ast: Parser) => {
 }
 
 console.clear();
-console.log(tokens);
-console.log(parse(tokens));
-console.log(evaluate(parse(tokens)));
+console.log(lex(program));
+console.log(parse(lex(program)));
 
+/*
+  # Interpreter
+  In order to interpret the input stream we feed the parser with the input
+  from the lexer and the evaluator with the output of the parser.
+*/
 
+console.log(evaluate(parse(lex(program))));
 
-console.log(compile(parse(tokens)));
+/*
+  # Compiler
+  In order to compile the expression to JavaScript, the only change we need to make
+  is to update the outermost `evaluate` invocation to `compile`.
+*/
+
+console.log(compile(parse(lex(program))));
